@@ -1,17 +1,34 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { io } from "socket.io-client";
 import LandingPage from "./LandingPage";
 
 const SIGNAL_SERVER_URL = "http://localhost:5000"; // Change if backend runs elsewhere
 
+function generateRoomId() {
+  return Math.random().toString(36).substring(2, 10);
+}
+
+const getRoomIdFromUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("room") || "";
+};
+
 const App = () => {
   const [showMeeting, setShowMeeting] = useState(false);
-  const [roomId, setRoomId] = useState("");
+  const [roomId, setRoomId] = useState(getRoomIdFromUrl());
   const [joined, setJoined] = useState(false);
+  const [meetingLink, setMeetingLink] = useState("");
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const pcRef = useRef(null);
   const socketRef = useRef(null);
+
+  // If roomId is in URL, auto-show meeting UI
+  useEffect(() => {
+    if (roomId && !showMeeting) {
+      setShowMeeting(true);
+    }
+  }, [roomId, showMeeting]);
 
   const handleJoin = async () => {
     socketRef.current = io(SIGNAL_SERVER_URL);
@@ -77,8 +94,31 @@ const App = () => {
     socketRef.current.emit("signal", { roomId, data: offer });
   };
 
+  // Handler for "Create Meeting"
+  const handleCreateMeeting = () => {
+    const newRoomId = generateRoomId();
+    setRoomId(newRoomId);
+    setMeetingLink(`${window.location.origin}?room=${newRoomId}`);
+    window.history.replaceState({}, "", `?room=${newRoomId}`);
+  };
+
+  // Handler for "Join Meeting"
+  const handleStartMeeting = () => {
+    setShowMeeting(true);
+    if (roomId) {
+      setMeetingLink(`${window.location.origin}?room=${roomId}`);
+      window.history.replaceState({}, "", `?room=${roomId}`);
+    }
+  };
+
   if (!showMeeting) {
-    return <LandingPage onStart={() => setShowMeeting(true)} />;
+    return (
+      <LandingPage
+        onStart={handleStartMeeting}
+        onCreate={handleCreateMeeting}
+        meetingLink={meetingLink}
+      />
+    );
   }
 
   return (

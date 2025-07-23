@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { io } from "socket.io-client";
 import LandingPage from "./LandingPage";
 
-const SIGNAL_SERVER_URL = "https://zoompfe.onrender.com"; // Change if backend runs elsewhere
+const SIGNAL_SERVER_URL = "https://zoompfe.onrender.com"; // Production backend
 
 function generateRoomId() {
   return Math.random().toString(36).substring(2, 10);
@@ -18,6 +18,7 @@ const App = () => {
   const [roomId, setRoomId] = useState(getRoomIdFromUrl());
   const [joined, setJoined] = useState(false);
   const [meetingLink, setMeetingLink] = useState("");
+  const [copied, setCopied] = useState(false);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const pcRef = useRef(null);
@@ -29,6 +30,13 @@ const App = () => {
       setShowMeeting(true);
     }
   }, [roomId, showMeeting]);
+
+  // Always update meeting link when roomId changes
+  useEffect(() => {
+    if (roomId) {
+      setMeetingLink(`${window.location.origin}?room=${roomId}`);
+    }
+  }, [roomId]);
 
   const handleJoin = async () => {
     socketRef.current = io(SIGNAL_SERVER_URL);
@@ -66,8 +74,8 @@ const App = () => {
   const setupMediaAndPeer = async () => {
     const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     if (localVideoRef.current) {
-  localVideoRef.current.srcObject = localStream;
-}
+      localVideoRef.current.srcObject = localStream;
+    }
 
     const pc = new RTCPeerConnection({
       iceServers: [
@@ -85,8 +93,8 @@ const App = () => {
 
     pc.ontrack = (event) => {
       if (remoteVideoRef.current) {
-  remoteVideoRef.current.srcObject = event.streams[0];
-}
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
     };
 
     pcRef.current = pc;
@@ -115,6 +123,14 @@ const App = () => {
     }
   };
 
+  const handleCopy = () => {
+    if (meetingLink) {
+      navigator.clipboard.writeText(meetingLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   if (!showMeeting) {
     return (
       <LandingPage
@@ -140,6 +156,48 @@ const App = () => {
         justifyContent: "flex-start"
       }}
     >
+      {/* Meeting link at the top */}
+      {meetingLink && (
+        <div style={{
+          width: "100%",
+          background: "#fff",
+          boxShadow: "0 2px 8px #0001",
+          padding: "18px 0 12px 0",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "sticky",
+          top: 0,
+          zIndex: 100
+        }}>
+          <span style={{
+            fontSize: 18,
+            color: "#2563eb",
+            fontWeight: 600,
+            background: "#f1f5f9",
+            padding: "8px 18px",
+            borderRadius: 8,
+            marginRight: 16
+          }}>
+            {meetingLink}
+          </span>
+          <button
+            onClick={handleCopy}
+            style={{
+              padding: "10px 22px",
+              fontSize: 16,
+              background: "#2563eb",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              cursor: "pointer",
+              fontWeight: 500
+            }}
+          >
+            {copied ? "Copied!" : "Copy Link"}
+          </button>
+        </div>
+      )}
       <h2 style={{ fontSize: 36, color: "#2563eb", margin: "48px 0 24px 0" }}>Minimal Zoom-like Web App</h2>
       {!joined ? (
         <div

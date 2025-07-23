@@ -65,7 +65,9 @@ const App = () => {
 
   const setupMediaAndPeer = async () => {
     const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localVideoRef.current.srcObject = localStream;
+    if (localVideoRef.current) {
+  localVideoRef.current.srcObject = localStream;
+}
 
     const pc = new RTCPeerConnection({
       iceServers: [
@@ -82,7 +84,9 @@ const App = () => {
     };
 
     pc.ontrack = (event) => {
-      remoteVideoRef.current.srcObject = event.streams[0];
+      if (remoteVideoRef.current) {
+  remoteVideoRef.current.srcObject = event.streams[0];
+}
     };
 
     pcRef.current = pc;

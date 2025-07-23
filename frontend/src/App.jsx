@@ -10,7 +10,9 @@ function generateRoomId() {
 
 const getRoomIdFromUrl = () => {
   const params = new URLSearchParams(window.location.search);
-  return params.get("room") || "";
+  const room = params.get("room") || "";
+  console.log("[DEBUG] getRoomIdFromUrl:", room);
+  return room;
 };
 
 const App = () => {
@@ -24,34 +26,39 @@ const App = () => {
   const pcRef = useRef(null);
   const socketRef = useRef(null);
 
-  // If roomId is in URL, auto-show meeting UI
   useEffect(() => {
+    console.log("[DEBUG] roomId state changed:", roomId);
     if (roomId && !showMeeting) {
       setShowMeeting(true);
+      console.log("[DEBUG] setShowMeeting(true) due to roomId in URL");
     }
   }, [roomId, showMeeting]);
 
-  // Always update meeting link when roomId changes
   useEffect(() => {
     if (roomId) {
-      setMeetingLink(`${window.location.origin}?room=${roomId}`);
+      const link = `${window.location.origin}?room=${roomId}`;
+      setMeetingLink(link);
+      console.log("[DEBUG] meetingLink set:", link);
     }
   }, [roomId]);
 
   const handleJoin = async () => {
+    console.log("[DEBUG] handleJoin called, roomId:", roomId);
     socketRef.current = io(SIGNAL_SERVER_URL);
 
     socketRef.current.on("connect", () => {
+      console.log("[DEBUG] Socket connected, emitting join-room");
       socketRef.current.emit("join-room", roomId);
       setJoined(true);
     });
 
     socketRef.current.on("user-joined", async () => {
-      // If you are the second user, start offer
+      console.log("[DEBUG] user-joined event received, creating offer");
       await createOffer();
     });
 
     socketRef.current.on("signal", async ({ id, data }) => {
+      console.log("[DEBUG] signal event received:", data);
       if (data.type === "offer") {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(data));
         const answer = await pcRef.current.createAnswer();
@@ -72,32 +79,45 @@ const App = () => {
   };
 
   const setupMediaAndPeer = async () => {
-    const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = localStream;
+    console.log("[DEBUG] setupMediaAndPeer called");
+    try {
+      const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      console.log("[DEBUG] getUserMedia success");
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = localStream;
+        console.log("[DEBUG] localVideoRef set");
+      } else {
+        console.log("[DEBUG] localVideoRef.current is null");
+      }
+
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" }
+        ]
+      });
+
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socketRef.current.emit("signal", { roomId, data: { candidate: event.candidate } });
+        }
+      };
+
+      pc.ontrack = (event) => {
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+          console.log("[DEBUG] remoteVideoRef set");
+        } else {
+          console.log("[DEBUG] remoteVideoRef.current is null");
+        }
+      };
+
+      pcRef.current = pc;
+    } catch (err) {
+      console.error("[DEBUG] getUserMedia error:", err);
+      alert("Could not access camera/microphone. Please allow permissions and use HTTPS.");
     }
-
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" }
-      ]
-    });
-
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socketRef.current.emit("signal", { roomId, data: { candidate: event.candidate } });
-      }
-    };
-
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
-
-    pcRef.current = pc;
   };
 
   const createOffer = async () => {
@@ -106,20 +126,20 @@ const App = () => {
     socketRef.current.emit("signal", { roomId, data: offer });
   };
 
-  // Handler for "Create Meeting"
   const handleCreateMeeting = () => {
     const newRoomId = generateRoomId();
     setRoomId(newRoomId);
     setMeetingLink(`${window.location.origin}?room=${newRoomId}`);
     window.history.replaceState({}, "", `?room=${newRoomId}`);
+    console.log("[DEBUG] handleCreateMeeting, newRoomId:", newRoomId);
   };
 
-  // Handler for "Join Meeting"
   const handleStartMeeting = () => {
     setShowMeeting(true);
     if (roomId) {
       setMeetingLink(`${window.location.origin}?room=${roomId}`);
       window.history.replaceState({}, "", `?room=${roomId}`);
+      console.log("[DEBUG] handleStartMeeting, roomId:", roomId);
     }
   };
 
@@ -128,6 +148,7 @@ const App = () => {
       navigator.clipboard.writeText(meetingLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      console.log("[DEBUG] Copied meeting link:", meetingLink);
     }
   };
 

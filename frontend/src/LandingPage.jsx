@@ -18,7 +18,7 @@ const LandingPage = ({ onStart }) => (
     }}>
       <h1 style={{ fontSize: 56, margin: "16px 0" }}>Welcome to ZoomLite</h1>
       <p style={{ fontSize: 24, color: "#e0e7ff" }}>
-        Effortless, secure, and instant video meetings. Connect with anyone, anywhere, anytime—right from your browser.
+        Effortless, secure, and instant video meetings. Connect with anyone, anywhere, anytime—right from your browser.zsd
       </p>
       <button
         style={{

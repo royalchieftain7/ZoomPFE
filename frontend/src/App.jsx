@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { io } from "socket.io-client";
 import LandingPage from "./LandingPage";
 
-const SIGNAL_SERVER_URL = "http://localhost:5000"; // Change if backend runs elsewhere
+const SIGNAL_SERVER_URL = "https://zoompfe.onrender.com"; // Change if backend runs elsewhere
 
 function generateRoomId() {
   return Math.random().toString(36).substring(2, 10);
